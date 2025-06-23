@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pt
+*.zip
+*.npy
+.venv/
+venv/
+miltronic_env/
+runs/
+models/
+*.log
+.idea/
+.vscode/

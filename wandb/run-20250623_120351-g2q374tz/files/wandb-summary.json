@@ -1,0 +1,1 @@
+{"global_step":2048,"_timestamp":1.750701843125998e+09,"_runtime":13.559466919,"rollout/ep_len_mean":538.4545,"time/fps":563,"_step":5,"miltronic_rollout/total_collapse_events":0,"rollout/ep_rew_mean":454.54544,"_wandb":{"runtime":13},"miltronic_step/is_harmonic":0}

@@ -1,0 +1,27 @@
+{
+  "os": "Linux-6.11.0-26-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2025-06-23T15:44:29.581791Z",
+  "program": "/home/saptiva/Miltron/train.py",
+  "codePath": "train.py",
+  "email": "dosdepastor69@gmail.com",
+  "root": "/home/saptiva/Miltron",
+  "host": "saptiva-ProLiant-DL385-Gen10",
+  "executable": "/home/saptiva/Miltron/miltronic_env/bin/python3",
+  "codePathLocal": "train.py",
+  "cpu_count": 32,
+  "cpu_count_logical": 64,
+  "disk": {
+    "/": {
+      "total": "8928369848320",
+      "used": "56777904128"
+    }
+  },
+  "memory": {
+    "total": "270263357440"
+  },
+  "cpu": {
+    "count": 32,
+    "countLogical": 64
+  }
+}
