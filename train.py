@@ -25,7 +25,7 @@ CONFIG = {
     "harmonic_epsilon": 0.1,
     "kl_stability_threshold": 0.005,
     "kl_ema_alpha": 0.001,
-    "expanded_phi_band": 0.5,
+    "expanded_phi_band": 1.05,         # Increased to be > |k - φ| ≈ 1.02
     "collapse_warmup_limit": 500000,
     "collapse_patience_limit": 20000,
     "collapse_trial_length": 10000,

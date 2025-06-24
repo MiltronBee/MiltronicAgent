@@ -5,7 +5,15 @@
       "Bash(python3:*)",
       "Bash(source:*)",
       "Bash(rm:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(echo $WANDB_MODE)",
+      "Bash(env)",
+      "Bash(export WANDB_API_KEY=your_api_key_here)",
+      "Bash(echo:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git config:*)"
     ],
     "deny": []
   }

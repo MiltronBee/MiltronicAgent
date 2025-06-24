@@ -1,0 +1,57 @@
+{
+  "os": "Linux-6.11.0-26-generic-x86_64-with-glibc2.39",
+  "python": "CPython 3.12.3",
+  "startedAt": "2025-06-23T22:31:11.745890Z",
+  "program": "/home/saptiva/Miltron/MiltronicAgent/train.py",
+  "codePath": "train.py",
+  "git": {
+    "remote": "https://MiltronBee:@github.com/MiltronBee/MiltronicAgent.git",
+    "commit": "01af1d6455eef481e2dd3a179a5ade328ea9b0ef"
+  },
+  "email": "dosdepastor69@gmail.com",
+  "root": "/home/saptiva/Miltron/MiltronicAgent",
+  "host": "saptiva-PowerEdge-R7525",
+  "executable": "/home/saptiva/Miltron/MiltronicAgent/miltronic_env/bin/python3",
+  "codePathLocal": "train.py",
+  "cpu_count": 16,
+  "cpu_count_logical": 32,
+  "gpu": "NVIDIA T1000 8GB",
+  "gpu_count": 3,
+  "disk": {
+    "/": {
+      "total": "470306373632",
+      "used": "44316553216"
+    }
+  },
+  "memory": {
+    "total": "337694097408"
+  },
+  "cpu": {
+    "count": 16,
+    "countLogical": 32
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA T1000 8GB",
+      "memoryTotal": "8589934592",
+      "cudaCores": 896,
+      "architecture": "Turing",
+      "uuid": "GPU-32c11695-47fd-31bc-41fb-2d894327c3de"
+    },
+    {
+      "name": "NVIDIA RTX 4500 Ada Generation",
+      "memoryTotal": "25763512320",
+      "cudaCores": 7680,
+      "architecture": "Ada",
+      "uuid": "GPU-9fcf9d88-015b-8e50-9099-1c404dd2324c"
+    },
+    {
+      "name": "NVIDIA T1000 8GB",
+      "memoryTotal": "8589934592",
+      "cudaCores": 896,
+      "architecture": "Turing",
+      "uuid": "GPU-d99cefb1-ed06-0eb4-d9f8-6ef6be3f02b8"
+    }
+  ],
+  "cudaVersion": "12.8"
+}

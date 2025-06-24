@@ -10,7 +10,7 @@ def analyze_results():
     and generates a comparative analysis plot.
     """
     api = wandb.Api()
-    project = "miltronic-pacman-v1-final"
+    project = "miltronic-pacman-v5-stable-warmup"
     print(f"Fetching runs from project: {project}")
 
     runs = api.runs(project, filters={"job_type": "full_run"})

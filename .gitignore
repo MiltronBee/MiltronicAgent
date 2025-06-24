@@ -11,3 +11,4 @@ models/
 *.log
 .idea/
 .vscode/
+.env
