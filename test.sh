@@ -57,7 +57,7 @@ EOF
 # STEP 6: WandB config (optional)
 export WANDB_PROJECT="miltronic-pacman-v1-final"
 export WANDB_MODE="online"
-# export WANDB_API_KEY="your_key_here"
+export WANDB_API_KEY="8a00b1cbdd3ad81aa24736b9e741380001d9de3b"
 
 # STEP 7: Prepare directories
 mkdir -p models logs runs

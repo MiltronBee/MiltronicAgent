@@ -41,7 +41,7 @@ CONFIG = {
     "learning_rate": 2.5e-4,
 }
 
-def train_agent():
+def train_miltronic_agent():
     run_name = f"miltronic_stable_warmup_{CONFIG['stability_eval_warmup']}"
     
     run = wandb.init(
@@ -86,6 +86,45 @@ def train_agent():
 
     run.finish()
     vec_env.close()
+
+def train_vanilla_ppo():
+    run_name = f"baseline_ppo_seed_{CONFIG['seed']}"
+    
+    run = wandb.init(
+        project=CONFIG["project_name"],
+        config=CONFIG,
+        name=run_name,
+        sync_tensorboard=True,
+        reinit=True
+    )
+    
+    vec_env = make_atari_env(CONFIG["env_name"], n_envs=CONFIG["n_envs"], seed=CONFIG["seed"], vec_env_cls=SubprocVecEnv)
+    
+    model = PPO(
+        policy="CnnPolicy",
+        env=vec_env,
+        verbose=1, n_steps=CONFIG["n_steps"], batch_size=CONFIG["batch_size"],
+        n_epochs=4, gamma=CONFIG["gamma"], gae_lambda=CONFIG["gae_lambda"],
+        clip_range=CONFIG["clip_range"], ent_coef=CONFIG["ent_coef"],
+        learning_rate=CONFIG["learning_rate"], tensorboard_log=f"runs/{run.id}",
+        seed=CONFIG["seed"], device='cuda' if torch.cuda.is_available() else 'cpu'
+    )
+    
+    model.learn(total_timesteps=CONFIG["total_timesteps"], progress_bar=True)
+    
+    model_path = f"models/{run.name}.zip"
+    model.save(model_path)
+    print(f"Model saved to {model_path}")
+
+    run.finish()
+    vec_env.close()
+
+def train_agent():
+    print("Training Miltronic PPO agent...")
+    train_miltronic_agent()
+    
+    print("Training vanilla PPO agent...")
+    train_vanilla_ppo()
 
 if __name__ == '__main__':
     os.makedirs("models", exist_ok=True)
