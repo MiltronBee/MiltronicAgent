@@ -7,7 +7,7 @@ import os
 
 # --- Configuration: Set these to match your W&B details ---
 ENTITY = "dosdepastor69-saptiva"
-PROJECT = "miltronic-pacman-v5-stable-warmup"
+PROJECT = "miltronic-pacman-v5-multi-seed"
 # -------------------------------------------------------------
 
 def analyze_results():
@@ -43,9 +43,9 @@ def analyze_results():
             continue
 
         # Categorize runs based on their name
-        agent_type = "Baseline"
+        agent_type = "Baseline PPO"
         if "miltronic" in run.name.lower():
-            agent_type = "Miltronic"
+            agent_type = "Miltronic PPO"
             miltronic_runs_found += 1
         else:
             baseline_runs_found += 1
@@ -54,6 +54,7 @@ def analyze_results():
             "name": run.name,
             "agent_type": agent_type,
             "seed": run.config.get("seed"),
+            "run_id": run.config.get("run_id"),
             "final_reward": run.summary.get("rollout/ep_rew_mean"),
             "history": run.history(keys=["rollout/ep_rew_mean", "_step"])
         })
@@ -71,25 +72,33 @@ def analyze_results():
     plt.figure(figsize=(14, 8))
     sns.set_theme(style="darkgrid")
     sns.lineplot(data=all_history_df, x="Timesteps", y="Mean Episode Reward", hue="agent_type", errorbar="sd", legend="full")
-    plt.title(f"Performance Comparison on Project: {PROJECT}")
+    plt.title(f"Multi-Seed Performance Comparison: Miltronic vs Baseline PPO")
+    plt.xlabel("Training Timesteps")
+    plt.ylabel("Mean Episode Reward")
     plt.tight_layout()
     
     plot_dir = "analysis_results"
     os.makedirs(plot_dir, exist_ok=True)
-    plot_filename = os.path.join(plot_dir, "reward_comparison.png")
-    plt.savefig(plot_filename)
+    plot_filename = os.path.join(plot_dir, "multi_seed_reward_comparison.png")
+    plt.savefig(plot_filename, dpi=300, bbox_inches='tight')
     print(f"\nComparison plot saved to {plot_filename}")
 
     # --- Final Stats Calculation ---
     final_rewards_df = pd.DataFrame(summary_list)
     print("\n--- Final Performance Summary ---")
     if miltronic_runs_found > 0:
-        miltronic_rewards = final_rewards_df[final_rewards_df['agent_type'] == 'Miltronic']['final_reward']
-        print(f"Miltronic: Mean Reward = {miltronic_rewards.mean():.2f} ± {miltronic_rewards.std():.2f} (from {miltronic_runs_found} runs)")
+        miltronic_rewards = final_rewards_df[final_rewards_df['agent_type'] == 'Miltronic PPO']['final_reward']
+        print(f"Miltronic PPO: Mean Reward = {miltronic_rewards.mean():.2f} ± {miltronic_rewards.std():.2f} (from {miltronic_runs_found} runs)")
+        print(f"Miltronic PPO individual results:")
+        for _, row in final_rewards_df[final_rewards_df['agent_type'] == 'Miltronic PPO'].iterrows():
+            print(f"  - Seed {row['seed']}, Run {row['run_id']}: {row['final_reward']:.2f}")
     
     if baseline_runs_found > 0:
-        baseline_rewards = final_rewards_df[final_rewards_df['agent_type'] == 'Baseline']['final_reward']
-        print(f"Baseline: Mean Reward = {baseline_rewards.mean():.2f} ± {baseline_rewards.std():.2f} (from {baseline_runs_found} runs)")
+        baseline_rewards = final_rewards_df[final_rewards_df['agent_type'] == 'Baseline PPO']['final_reward']
+        print(f"Baseline PPO: Mean Reward = {baseline_rewards.mean():.2f} ± {baseline_rewards.std():.2f} (from {baseline_runs_found} runs)")
+        print(f"Baseline PPO individual results:")
+        for _, row in final_rewards_df[final_rewards_df['agent_type'] == 'Baseline PPO'].iterrows():
+            print(f"  - Seed {row['seed']}, Run {row['run_id']}: {row['final_reward']:.2f}")
 
     # --- Log analysis back to W&B ---
     try:
