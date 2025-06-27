@@ -197,6 +197,8 @@ except Exception as e:
     TRAIN_LOG="logs/train_$(date +%Y%m%d_%H%M).log"
     echo -e "${GRAY}Logging to: $TRAIN_LOG${NC}"
     
+    # Ensure we're in the virtual environment for training
+    source "$ENV/bin/activate"
     python3 train.py | tee "$TRAIN_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
@@ -215,6 +217,8 @@ except Exception as e:
     ANALYSIS_LOG="logs/analyze_$(date +%Y%m%d_%H%M).log"
     echo -e "${GRAY}Logging to: $ANALYSIS_LOG${NC}"
     
+    # Ensure we're in the virtual environment for analysis
+    source "$ENV/bin/activate"
     python3 analyze.py | tee "$ANALYSIS_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
