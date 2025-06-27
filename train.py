@@ -1,4 +1,5 @@
-# train.py
+# train.py - Meta-Adaptive Gating (MAG) Experimental Harness
+import argparse
 import ale_py
 import gymnasium as gym
 import torch
@@ -8,151 +9,228 @@ import numpy as np
 
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
-from stable_baselines3.common.env_util import make_atari_env
+from stable_baselines3.common.env_util import make_atari_env, make_vec_env
 
-from miltronic_elements import PPO_Miltronic, MiltronicActorCriticPolicy, MiltronicCNN, MiltronicLoggingCallback
+from miltronic_elements import (
+    PPO_Miltronic, 
+    MiltronicActorCriticPolicy, 
+    MiltronicMlpPolicy,
+    MiltronicCNN, 
+    MiltronicLoggingCallback
+)
 
-# --- Configuration ---
-CONFIG = {
-    "total_timesteps": 5_000_000,
-    "n_envs": 8,
-    "n_steps": 256,
-    "batch_size": 512,
-    "project_name": "miltronic-pacman-v5-multi-seed",
-    "env_name": "ALE/MsPacman-v5",
-    "base_seed": 2028,
-    
-    # --- Multi-seed experiment configuration ---
-    "n_miltronic_runs": 5,
-    "n_baseline_runs": 3,
-    
-    # --- Miltronic Hyperparameters ---
-    "harmonic_epsilon": 0.1,
-    "kl_stability_threshold": 0.005,
-    "kl_ema_alpha": 0.001,
-    "expanded_phi_band": 1.05,         # Increased to be > |k - φ| ≈ 1.02
-    "collapse_warmup_limit": 500000,
-    "collapse_patience_limit": 20000,
-    "collapse_trial_length": 10000,
-    
-    # --- NEW V5 STABILITY EVAL WARMUP ---
-    "stability_eval_warmup": 20, # Ignore first 20 train() calls for stability checks
-    
-    # --- Standard Hyperparameters ---
-    "gamma": 0.99,
-    "gae_lambda": 0.95,
-    "clip_range": 0.1,
-    "ent_coef": 0.01,
-    "learning_rate": 2.5e-4,
-}
+def get_env_specific_configs(env_id):
+    """Returns environment-specific configuration parameters."""
+    if "BipedalWalker" in env_id:
+        return {
+            "policy_class": MiltronicMlpPolicy,
+            "n_envs": 16,
+            "n_steps": 2048,
+            "batch_size": 1024,
+            "learning_rate": 3e-4,
+            "is_atari": False
+        }
+    elif "Pacman" in env_id or "ALE/" in env_id:
+        return {
+            "policy_class": MiltronicActorCriticPolicy,
+            "n_envs": 8,
+            "n_steps": 256,
+            "batch_size": 512,
+            "learning_rate": 2.5e-4,
+            "is_atari": True
+        }
+    elif "LunarLander" in env_id or "CartPole" in env_id:
+        return {
+            "policy_class": MiltronicMlpPolicy,
+            "n_envs": 8,
+            "n_steps": 2048,
+            "batch_size": 512,
+            "learning_rate": 3e-4,
+            "is_atari": False
+        }
+    else:
+        # Default configuration
+        return {
+            "policy_class": MiltronicMlpPolicy,
+            "n_envs": 8,
+            "n_steps": 2048,
+            "batch_size": 512,
+            "learning_rate": 3e-4,
+            "is_atari": False
+        }
 
-def train_miltronic_agent(seed, run_id):
-    run_name = f"miltronic_seed_{seed}_run_{run_id}"
+def train_mag_agent(args):
+    """Train a Miltronic agent with Meta-Adaptive Gating."""
+    env_config = get_env_specific_configs(args.env)
+    
+    # Central configuration
+    config = {
+        "total_timesteps": args.timesteps,
+        "project_name": "miltronic-mag-experiments",
+        "run_name": f"{args.mode}_{args.env.replace('/', '_')}_seed_{args.seed}",
+        "mode": args.mode,
+        "env_id": args.env,
+        "seed": args.seed,
+        **env_config,
+        
+        # MAG Initial Hyperparameters (will be modulated)
+        "initial_patience_limit": 20000,
+        "initial_kl_stability_threshold": 0.008,
+        "initial_ent_coef": 0.01,
+        
+        # Miltronic Hyperparameters
+        "harmonic_epsilon": 0.1,
+        "expanded_phi_band": 1.05,
+        "collapse_warmup_limit": 500000,
+        "collapse_trial_length": 10000,
+        "stability_eval_warmup": 20,
+        "kl_ema_alpha": 0.001,
+        
+        # Standard PPO Hyperparameters
+        "gamma": 0.99,
+        "gae_lambda": 0.95,
+        "clip_range": 0.1,
+    }
     
     run = wandb.init(
-        project=CONFIG["project_name"],
-        config={**CONFIG, "seed": seed, "run_id": run_id},
-        name=run_name,
-        sync_tensorboard=True,
+        project=config["project_name"], 
+        name=config["run_name"], 
+        config=config, 
+        sync_tensorboard=True
     )
     
-    vec_env = make_atari_env(CONFIG["env_name"], n_envs=CONFIG["n_envs"], seed=seed, vec_env_cls=SubprocVecEnv)
+    # Create environment
+    if config["is_atari"]:
+        vec_env = make_atari_env(args.env, n_envs=config["n_envs"], seed=config["seed"], vec_env_cls=SubprocVecEnv)
+    else:
+        vec_env = make_vec_env(args.env, n_envs=config["n_envs"], seed=config["seed"])
     
+    # Setup MAG callback
+    initial_mag_params = {
+        "patience_limit": config["initial_patience_limit"],
+        "kl_stability_threshold": config["initial_kl_stability_threshold"],
+        "ent_coef": config["initial_ent_coef"],
+    }
+    callback = MiltronicLoggingCallback(
+        initial_mag_params=initial_mag_params,
+        warmup_limit=config["collapse_warmup_limit"],
+        trial_length=config["collapse_trial_length"]
+    )
+    
+    # Policy kwargs
     policy_kwargs = dict(
-        harmonic_epsilon=CONFIG["harmonic_epsilon"],
-        expanded_phi_band=CONFIG["expanded_phi_band"]
+        harmonic_epsilon=config["harmonic_epsilon"],
+        expanded_phi_band=config["expanded_phi_band"]
     )
     
+    # Create the Miltronic agent
     model = PPO_Miltronic(
-        policy=MiltronicActorCriticPolicy,
+        policy=config["policy_class"],
         env=vec_env,
-        kl_stability_threshold=CONFIG["kl_stability_threshold"],
-        kl_ema_alpha=CONFIG["kl_ema_alpha"],
-        stability_eval_warmup=CONFIG["stability_eval_warmup"], # Pass new param
-        verbose=1, n_steps=CONFIG["n_steps"], batch_size=CONFIG["batch_size"],
-        n_epochs=4, gamma=CONFIG["gamma"], gae_lambda=CONFIG["gae_lambda"],
-        clip_range=CONFIG["clip_range"], ent_coef=CONFIG["ent_coef"],
-        learning_rate=CONFIG["learning_rate"], tensorboard_log=f"runs/{run.id}",
-        seed=seed, device='cuda' if torch.cuda.is_available() else 'cpu',
+        kl_stability_threshold=config["initial_kl_stability_threshold"],
+        kl_ema_alpha=config["kl_ema_alpha"],
+        stability_eval_warmup=config["stability_eval_warmup"],
+        verbose=1,
+        n_steps=config["n_steps"], 
+        batch_size=config["batch_size"],
+        n_epochs=4, 
+        gamma=config["gamma"], 
+        gae_lambda=config["gae_lambda"],
+        clip_range=config["clip_range"], 
+        ent_coef=config["initial_ent_coef"],
+        learning_rate=config["learning_rate"], 
+        tensorboard_log=f"runs/{run.id}",
+        seed=config["seed"], 
+        device='cuda' if torch.cuda.is_available() else 'cpu',
         policy_kwargs=policy_kwargs
     )
     
-    callback = MiltronicLoggingCallback(
-        warmup_limit=CONFIG["collapse_warmup_limit"],
-        patience_limit=CONFIG["collapse_patience_limit"],
-        trial_length=CONFIG["collapse_trial_length"]
-    )
+    model.learn(total_timesteps=config["total_timesteps"], callback=callback, progress_bar=True)
     
-    model.learn(total_timesteps=CONFIG["total_timesteps"], callback=callback, progress_bar=True)
-    
+    # Save model
     model_path = f"models/{run.name}.zip"
     model.save(model_path)
     print(f"Model saved to {model_path}")
-
+    
     run.finish()
     vec_env.close()
 
-def train_vanilla_ppo(seed, run_id):
-    run_name = f"baseline_ppo_seed_{seed}_run_{run_id}"
+def train_baseline_agent(args):
+    """Train a baseline PPO agent."""
+    env_config = get_env_specific_configs(args.env)
+    
+    config = {
+        "total_timesteps": args.timesteps,
+        "project_name": "miltronic-mag-experiments",
+        "run_name": f"baseline_{args.env.replace('/', '_')}_seed_{args.seed}",
+        "env_id": args.env,
+        "seed": args.seed,
+        **env_config
+    }
     
     run = wandb.init(
-        project=CONFIG["project_name"],
-        config={**CONFIG, "seed": seed, "run_id": run_id},
-        name=run_name,
-        sync_tensorboard=True,
-        reinit=True
+        project=config["project_name"], 
+        name=config["run_name"], 
+        config=config, 
+        sync_tensorboard=True
     )
     
-    vec_env = make_atari_env(CONFIG["env_name"], n_envs=CONFIG["n_envs"], seed=seed, vec_env_cls=SubprocVecEnv)
+    # Create environment
+    if config["is_atari"]:
+        vec_env = make_atari_env(args.env, n_envs=config["n_envs"], seed=config["seed"], vec_env_cls=SubprocVecEnv)
+        policy_name = "CnnPolicy"
+    else:
+        vec_env = make_vec_env(args.env, n_envs=config["n_envs"], seed=config["seed"])
+        policy_name = "MlpPolicy"
     
     model = PPO(
-        policy="CnnPolicy",
+        policy=policy_name,
         env=vec_env,
-        verbose=1, n_steps=CONFIG["n_steps"], batch_size=CONFIG["batch_size"],
-        n_epochs=4, gamma=CONFIG["gamma"], gae_lambda=CONFIG["gae_lambda"],
-        clip_range=CONFIG["clip_range"], ent_coef=CONFIG["ent_coef"],
-        learning_rate=CONFIG["learning_rate"], tensorboard_log=f"runs/{run.id}",
-        seed=seed, device='cuda' if torch.cuda.is_available() else 'cpu'
+        verbose=1,
+        n_steps=config["n_steps"], 
+        batch_size=config["batch_size"],
+        learning_rate=config["learning_rate"],
+        tensorboard_log=f"runs/{run.id}",
+        seed=config["seed"], 
+        device='cuda' if torch.cuda.is_available() else 'cpu'
     )
     
-    model.learn(total_timesteps=CONFIG["total_timesteps"], progress_bar=True)
+    model.learn(total_timesteps=config["total_timesteps"], progress_bar=True)
     
+    # Save model
     model_path = f"models/{run.name}.zip"
     model.save(model_path)
     print(f"Model saved to {model_path}")
-
+    
     run.finish()
     vec_env.close()
 
-def generate_seeds(base_seed, n_seeds):
-    """Generate a list of seeds based on a base seed."""
-    np.random.seed(base_seed)
-    return [base_seed + i * 1000 for i in range(n_seeds)]
-
-def train_multi_seed_experiment():
-    """Run the full multi-seed experiment."""
-    print(f"Starting multi-seed experiment: {CONFIG['n_miltronic_runs']} Miltronic runs, {CONFIG['n_baseline_runs']} baseline runs")
+def main():
+    parser = argparse.ArgumentParser(description="Miltronic MAG Experimental Harness")
+    parser.add_argument("--env", type=str, default="LunarLander-v2", 
+                       help="Environment ID (e.g., LunarLander-v2, BipedalWalker-v3, ALE/MsPacman-v5)")
+    parser.add_argument("--mode", type=str, default="miltronic_mag", 
+                       choices=["miltronic_mag", "baseline"],
+                       help="Training mode: miltronic_mag or baseline")
+    parser.add_argument("--timesteps", type=int, default=1_000_000,
+                       help="Total training timesteps")
+    parser.add_argument("--seed", type=int, default=42,
+                       help="Random seed")
     
-    # Generate seeds for Miltronic runs
-    miltronic_seeds = generate_seeds(CONFIG["base_seed"], CONFIG["n_miltronic_runs"])
-    baseline_seeds = generate_seeds(CONFIG["base_seed"] + 10000, CONFIG["n_baseline_runs"])
+    args = parser.parse_args()
     
-    print(f"Miltronic seeds: {miltronic_seeds}")
-    print(f"Baseline seeds: {baseline_seeds}")
-    
-    # Train Miltronic agents
-    for i, seed in enumerate(miltronic_seeds, 1):
-        print(f"\n=== Training Miltronic Agent {i}/{CONFIG['n_miltronic_runs']} (seed={seed}) ===")
-        train_miltronic_agent(seed, i)
-    
-    # Train baseline agents
-    for i, seed in enumerate(baseline_seeds, 1):
-        print(f"\n=== Training Baseline PPO Agent {i}/{CONFIG['n_baseline_runs']} (seed={seed}) ===")
-        train_vanilla_ppo(seed, i)
-    
-    print("\n=== Multi-seed experiment completed! ===")
-
-if __name__ == '__main__':
+    # Create necessary directories
     os.makedirs("models", exist_ok=True)
     os.makedirs("runs", exist_ok=True)
-    train_multi_seed_experiment()
+    
+    print(f"Starting {args.mode} training on {args.env} for {args.timesteps:,} timesteps (seed={args.seed})")
+    
+    if args.mode == "miltronic_mag":
+        train_mag_agent(args)
+    else:
+        train_baseline_agent(args)
+    
+    print("Training completed!")
+
+if __name__ == '__main__':
+    main()
