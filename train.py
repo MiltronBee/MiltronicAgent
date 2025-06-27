@@ -213,9 +213,9 @@ def main():
     parser = argparse.ArgumentParser(description="Miltronic MAG Experimental Harness")
     parser.add_argument("--env", type=str, default="ALE/MsPacman-v5", 
                        help="Environment ID (e.g., LunarLander-v2, BipedalWalker-v3, ALE/MsPacman-v5)")
-    parser.add_argument("--mode", type=str, default="miltronic_mag", 
-                       choices=["miltronic_mag", "baseline"],
-                       help="Training mode: miltronic_mag or baseline")
+    parser.add_argument("--mode", type=str, default="both", 
+                       choices=["miltronic_mag", "baseline", "both"],
+                       help="Training mode: miltronic_mag, baseline, or both")
     parser.add_argument("--timesteps", type=int, default=5_000_000,
                        help="Total training timesteps")
     parser.add_argument("--seed", type=int, default=42,
@@ -227,14 +227,31 @@ def main():
     os.makedirs("models", exist_ok=True)
     os.makedirs("runs", exist_ok=True)
     
-    print(f"Starting {args.mode} training on {args.env} for {args.timesteps:,} timesteps (seed={args.seed})")
-    
-    if args.mode == "miltronic_mag":
-        train_mag_agent(args)
+    if args.mode == "both":
+        print(f"Starting comparison training on {args.env} for {args.timesteps:,} timesteps each (seed={args.seed})")
+        
+        # Run MAG training
+        print("\n=== Phase 1: Training Miltronic MAG Agent ===")
+        mag_args = argparse.Namespace(**vars(args))
+        mag_args.mode = "miltronic_mag"
+        train_mag_agent(mag_args)
+        
+        # Run baseline training  
+        print("\n=== Phase 2: Training Baseline PPO Agent ===")
+        baseline_args = argparse.Namespace(**vars(args))
+        baseline_args.mode = "baseline"
+        train_baseline_agent(baseline_args)
+        
+        print("Both training runs completed!")
     else:
-        train_baseline_agent(args)
-    
-    print("Training completed!")
+        print(f"Starting {args.mode} training on {args.env} for {args.timesteps:,} timesteps (seed={args.seed})")
+        
+        if args.mode == "miltronic_mag":
+            train_mag_agent(args)
+        else:
+            train_baseline_agent(args)
+        
+        print("Training completed!")
 
 if __name__ == '__main__':
     main()
