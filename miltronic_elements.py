@@ -93,6 +93,7 @@ class MiltronicActorCriticPolicy(ActorCriticPolicy):
         self.harmonic_epsilon = harmonic_epsilon
         self.expanded_phi_band = expanded_phi_band
         self.is_policy_stable = False
+        self.is_converged = False  # NEW: Trend confirmation gate
         # Flag to be set by the callback
         self.attempt_forced_collapse = False
 
@@ -103,7 +104,8 @@ class MiltronicActorCriticPolicy(ActorCriticPolicy):
         current_epsilon = self.expanded_phi_band if self.attempt_forced_collapse else self.harmonic_epsilon
         
         is_harmonic = abs(self.k_value - PHI) <= current_epsilon
-        should_collapse = self.training and is_harmonic and self.is_policy_stable
+        # FINAL COLLAPSE CHECK WITH TREND CONFIRMATION
+        should_collapse = self.training and is_harmonic and self.is_policy_stable and self.is_converged
         
         if should_collapse:
             gated_logits = w_lambda_gate_torch(mean_actions)
@@ -123,6 +125,7 @@ class MiltronicMlpPolicy(ActorCriticPolicy):
         self.harmonic_epsilon = harmonic_epsilon
         self.expanded_phi_band = expanded_phi_band
         self.is_policy_stable = False
+        self.is_converged = False  # NEW: Trend confirmation gate
         self.attempt_forced_collapse = False
 
     def _get_action_dist_from_latent(self, latent_pi: torch.Tensor, latent_sde=None):
@@ -132,7 +135,8 @@ class MiltronicMlpPolicy(ActorCriticPolicy):
         current_epsilon = self.expanded_phi_band if self.attempt_forced_collapse else self.harmonic_epsilon
         
         is_harmonic = abs(self.k_value - PHI) <= current_epsilon
-        should_collapse = self.training and is_harmonic and self.is_policy_stable
+        # FINAL COLLAPSE CHECK WITH TREND CONFIRMATION
+        should_collapse = self.training and is_harmonic and self.is_policy_stable and self.is_converged
         
         if should_collapse and len(mean_actions.shape) > 1 and mean_actions.shape[-1] > 2:
             # Only apply gating for discrete action spaces with more than 2 actions
@@ -193,7 +197,7 @@ class PPO_Miltronic(PPO):
 # --- 4. Custom Logging Callback (UPDATED with MAG Integration) ---
 class MiltronicLoggingCallback(BaseCallback):
     def __init__(self, initial_mag_params: dict = None, warmup_limit=500000, trial_length=10000, 
-                 ema_alpha=0.05, verbose=0):
+                 ema_alpha=0.05, trend_ema_alpha=0.005, trend_confirmation_threshold=0.0, verbose=0):
         super().__init__(verbose)
         self.warmup_limit = warmup_limit
         self.trial_length = trial_length
@@ -207,10 +211,18 @@ class MiltronicLoggingCallback(BaseCallback):
             self.modulator = None
             self.patience_limit = 20000
         
-        # Reward EMA tracking for MAG
+        # EMA tracking for reward and entropy trends
         self.ema_alpha = ema_alpha
+        self.trend_ema_alpha = trend_ema_alpha
+        self.trend_confirmation_threshold = trend_confirmation_threshold
+        
+        # Reward tracking
         self.reward_ema = None
         self.reward_ema_slow = None  # For trend calculation
+        
+        # NEW: Entropy tracking for trend confirmation
+        self.entropy_ema = None
+        self.entropy_ema_slow = None
         
         # Original state variables
         self.stable_step_counter = 0
@@ -267,38 +279,59 @@ class MiltronicLoggingCallback(BaseCallback):
         return True
 
     def _on_rollout_end(self) -> None:
-        # MAG Update Logic
-        if self.modulator:
-            # 1. Update Reward EMA (R̄_t) Monitor
-            current_reward = 0
-            if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
-                # Extract mean reward from episode info buffer
-                rewards = [ep_info['r'] for ep_info in self.model.ep_info_buffer if 'r' in ep_info]
-                if rewards:
-                    current_reward = np.mean(rewards)
-            elif hasattr(self.locals, 'infos') and self.locals.get('infos'):
-                # Fallback: try to get from infos
-                rewards = [info.get('episode', {}).get('r', 0) for info in self.locals['infos'] 
-                          if info.get('episode', {}).get('r') is not None]
-                if rewards:
-                    current_reward = np.mean(rewards)
-            else:
-                current_reward = self.reward_ema or 0
+        # 1. Update Reward EMA (R̄_t) Monitor
+        current_reward = 0
+        if hasattr(self.model, 'ep_info_buffer') and len(self.model.ep_info_buffer) > 0:
+            # Extract mean reward from episode info buffer
+            rewards = [ep_info['r'] for ep_info in self.model.ep_info_buffer if 'r' in ep_info]
+            if rewards:
+                current_reward = np.mean(rewards)
+        elif hasattr(self.locals, 'infos') and self.locals.get('infos'):
+            # Fallback: try to get from infos
+            rewards = [info.get('episode', {}).get('r', 0) for info in self.locals['infos'] 
+                      if info.get('episode', {}).get('r') is not None]
+            if rewards:
+                current_reward = np.mean(rewards)
+        else:
+            current_reward = self.reward_ema or 0
+        
+        # 2. Update Entropy EMA
+        current_entropy = self.model.logger.name_to_value.get('train/entropy_loss', self.entropy_ema or 0)
+        
+        # Update Reward EMA
+        if self.reward_ema is None:
+            self.reward_ema, self.reward_ema_slow = current_reward, current_reward
+        else:
+            self.reward_ema = (1 - self.ema_alpha) * self.reward_ema + self.ema_alpha * current_reward
+            self.reward_ema_slow = (1 - self.trend_ema_alpha) * self.reward_ema_slow + self.trend_ema_alpha * current_reward
             
-            if self.reward_ema is None:
-                self.reward_ema = current_reward
-                self.reward_ema_slow = current_reward
-            else:
-                self.reward_ema = (1 - self.ema_alpha) * self.reward_ema + self.ema_alpha * current_reward
-                # Use a much slower alpha for the trend anchor
-                self.reward_ema_slow = (1 - 0.005) * self.reward_ema_slow + 0.005 * current_reward
-                
-            reward_trend = self.reward_ema - self.reward_ema_slow
-
-            # 2. Update the Constraint Modulator
+        # Update Entropy EMA
+        if self.entropy_ema is None:
+            self.entropy_ema, self.entropy_ema_slow = current_entropy, current_entropy
+        else:
+            self.entropy_ema = (1 - self.ema_alpha) * self.entropy_ema + self.ema_alpha * current_entropy
+            self.entropy_ema_slow = (1 - self.trend_ema_alpha) * self.entropy_ema_slow + self.trend_ema_alpha * current_entropy
+            
+        reward_trend = self.reward_ema - self.reward_ema_slow
+        entropy_trend = self.entropy_ema - self.entropy_ema_slow
+        
+        # 3. Check for Trend Confirmation (THE CORE CONVERGENCE GATE)
+        is_reward_improving = reward_trend > self.trend_confirmation_threshold
+        is_entropy_decaying = entropy_trend < -self.trend_confirmation_threshold  # Negative slope
+        
+        # The policy's stability is checked within the agent's train step
+        is_stable = getattr(self.model.policy, 'is_policy_stable', False)
+        
+        # The final convergence gate - ALL THREE CONDITIONS MUST BE MET
+        is_converged = is_stable and is_reward_improving and is_entropy_decaying
+        self.model.policy.is_converged = is_converged  # Pass the final signal to the policy
+        
+        # 4. MAG Update Logic (if available)
+        if self.modulator:
+            # Update the Constraint Modulator
             self.modulator.update(reward_trend)
             
-            # 3. Inject New Parameters into the Agent and Callback
+            # Inject New Parameters into the Agent and Callback
             new_params = self.modulator.get_params()
             self.patience_limit = new_params["patience_limit"]
             
@@ -308,10 +341,8 @@ class MiltronicLoggingCallback(BaseCallback):
             if hasattr(self.model, 'kl_stability_threshold'):
                 self.model.kl_stability_threshold = new_params["kl_stability_threshold"]
             
-            # 4. Log everything to W&B for analysis
+            # Log MAG data
             wandb.log({
-                "mag/reward_ema": self.reward_ema,
-                "mag/reward_trend": reward_trend,
                 "mag/current_regime": new_params["regime_id"],
                 "mag/regime_name": new_params["regime_name"],
                 "mag/dynamic_patience_limit": self.patience_limit,
@@ -320,8 +351,15 @@ class MiltronicLoggingCallback(BaseCallback):
                 "global_step": self.num_timesteps
             })
         
-        # Original logging
+        # 5. Log Trend Confirmation Data
         wandb.log({
+            "mag/reward_ema": self.reward_ema,
+            "mag/reward_trend": reward_trend,
+            "mag/entropy_ema": self.entropy_ema,
+            "mag/entropy_trend": entropy_trend,
+            "mag/is_reward_improving": float(is_reward_improving),
+            "mag/is_entropy_decaying": float(is_entropy_decaying),
+            "mag/is_converged": float(is_converged),
             "miltronic_rollout/total_collapse_events": self.collapse_events_rollout,
             "global_step": self.num_timesteps
         })

@@ -73,18 +73,21 @@ def train_mag_agent(args):
         "seed": args.seed,
         **env_config,
         
-        # MAG Initial Hyperparameters (will be modulated)
-        "initial_patience_limit": 20000,
-        "initial_kl_stability_threshold": 0.008,
+        # MAG Initial Hyperparameters (RECALIBRATED - less sensitive)
+        "initial_patience_limit": 100000,  # Increased significantly
+        "initial_kl_stability_threshold": 0.015,  # Increased (more lenient)
         "initial_ent_coef": 0.01,
         
-        # Miltronic Hyperparameters
+        # Miltronic Hyperparameters (RECALIBRATED)
         "harmonic_epsilon": 0.1,
         "expanded_phi_band": 1.05,
-        "collapse_warmup_limit": 500000,
-        "collapse_trial_length": 10000,
-        "stability_eval_warmup": 20,
+        "collapse_warmup_limit": 200000,  # Reduced warmup for faster engagement
+        "collapse_trial_length": 20000,   # Increased trial length
+        "stability_eval_warmup": 50,      # Increased warmup
         "kl_ema_alpha": 0.001,
+        
+        # NEW: Trend Confirmation Parameters
+        "trend_confirmation_threshold": 0.01,  # Minimal slope for trend validation
         
         # Standard PPO Hyperparameters
         "gamma": 0.99,
@@ -105,7 +108,7 @@ def train_mag_agent(args):
     else:
         vec_env = make_vec_env(args.env, n_envs=config["n_envs"], seed=config["seed"])
     
-    # Setup MAG callback
+    # Setup MAG callback with trend confirmation
     initial_mag_params = {
         "patience_limit": config["initial_patience_limit"],
         "kl_stability_threshold": config["initial_kl_stability_threshold"],
@@ -114,7 +117,8 @@ def train_mag_agent(args):
     callback = MiltronicLoggingCallback(
         initial_mag_params=initial_mag_params,
         warmup_limit=config["collapse_warmup_limit"],
-        trial_length=config["collapse_trial_length"]
+        trial_length=config["collapse_trial_length"],
+        trend_confirmation_threshold=config["trend_confirmation_threshold"]
     )
     
     # Policy kwargs
