@@ -11,7 +11,7 @@ echo "Working Directory: $(pwd)"
 # STEP 0: System packages
 echo "-> Installing system dependencies..."
 sudo apt-get update -y
-sudo apt-get install -y python3 python3-pip python3-venv ffmpeg curl git
+sudo apt-get install -y python3 python3-pip python3-venv ffmpeg curl git swig
 
 # STEP 1: Virtual environment
 ENV="miltronic_env"
@@ -32,14 +32,15 @@ pip install \
   torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 pip install \
   stable-baselines3[extra] \
-  "gymnasium[atari]" \
+  "gymnasium[atari,box2d]" \
   autorom \
   ale-py \
   wandb \
   mpmath \
   matplotlib \
   seaborn \
-  pandas
+  pandas \
+  box2d-py
 
 # STEP 4: Install ROMs
 echo "-> Installing Atari ROMs"

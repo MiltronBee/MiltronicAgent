@@ -207,7 +207,7 @@ def train_baseline_agent(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Miltronic MAG Experimental Harness")
-    parser.add_argument("--env", type=str, default="LunarLander-v2", 
+    parser.add_argument("--env", type=str, default="LunarLander-v3", 
                        help="Environment ID (e.g., LunarLander-v2, BipedalWalker-v3, ALE/MsPacman-v5)")
     parser.add_argument("--mode", type=str, default="miltronic_mag", 
                        choices=["miltronic_mag", "baseline"],

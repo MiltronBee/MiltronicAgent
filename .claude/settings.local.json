@@ -15,7 +15,9 @@
       "Bash(git push:*)",
       "Bash(git config:*)",
       "Bash(git remote:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(./test.sh)",
+      "Bash(grep:*)"
     ],
     "deny": []
   }
