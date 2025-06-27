@@ -212,7 +212,7 @@ def main():
     parser.add_argument("--mode", type=str, default="miltronic_mag", 
                        choices=["miltronic_mag", "baseline"],
                        help="Training mode: miltronic_mag or baseline")
-    parser.add_argument("--timesteps", type=int, default=1_000_000,
+    parser.add_argument("--timesteps", type=int, default=5_000_000,
                        help="Total training timesteps")
     parser.add_argument("--seed", type=int, default=42,
                        help="Random seed")
