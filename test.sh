@@ -136,16 +136,19 @@ main() {
     # STEP 3: Install dependencies  
     log_step "Installing Python dependencies..."
     log_info "Installing PyTorch with CUDA support..."
+    source "$ENV/bin/activate"
     pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 > /dev/null 2>&1 &
     spinner $!
     
     log_info "Installing RL and analysis libraries..."
+    source "$ENV/bin/activate"
     pip install stable-baselines3[extra] "gymnasium[atari,box2d]" autorom ale-py wandb mpmath matplotlib seaborn pandas box2d-py > /dev/null 2>&1 &
     spinner $!
     log_success "All dependencies installed"
 
     # STEP 4: Install ROMs
     log_step "Installing Atari ROMs..."
+    source "$ENV/bin/activate"
     if AutoROM --accept-license > /dev/null 2>&1; then
         log_success "Atari ROMs installed"
     else
@@ -154,6 +157,7 @@ main() {
 
     # STEP 5: Verify environment
     log_step "Verifying ALE/MsPacman-v5 environment..."
+    source "$ENV/bin/activate"
     if python3 -c "
 import gymnasium
 import ale_py
