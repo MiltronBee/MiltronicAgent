@@ -346,24 +346,24 @@ main() {
 
     # STEP 2: Upgrade pip
     log_step "Upgrading pip..."
-    pip install --upgrade pip > /dev/null 2>&1 &
+    "$ENV/bin/pip" install --upgrade pip > /dev/null 2>&1 &
     spinner $!
     log_success "pip upgraded"
 
     # STEP 3: Install dependencies  
     log_step "Installing Python dependencies..."
     log_info "Installing PyTorch with CUDA support..."
-    pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 > /dev/null 2>&1 &
+    "$ENV/bin/pip" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118 > /dev/null 2>&1 &
     spinner $!
     
     log_info "Installing RL and analysis libraries..."
-    pip install stable-baselines3[extra] "gymnasium[atari,box2d]" autorom ale-py wandb mpmath matplotlib seaborn pandas box2d-py > /dev/null 2>&1 &
+    "$ENV/bin/pip" install stable-baselines3[extra] "gymnasium[atari,box2d]" autorom ale-py wandb mpmath matplotlib seaborn pandas box2d-py > /dev/null 2>&1 &
     spinner $!
     log_success "All dependencies installed"
 
     # STEP 4: Install ROMs
     log_step "Installing Atari ROMs..."
-    if AutoROM --accept-license > /dev/null 2>&1; then
+    if "$ENV/bin/python" -m AutoROM --accept-license > /dev/null 2>&1; then
         log_success "Atari ROMs installed"
     else
         log_warning "ROM installation may have failed, but continuing..."
@@ -371,7 +371,7 @@ main() {
 
     # STEP 5: Verify environment
     log_step "Verifying ALE/MsPacman-v5 environment..."
-    if python3 -c "
+    if "$ENV/bin/python" -c "
 import gymnasium
 import ale_py
 try:
@@ -415,8 +415,7 @@ except Exception as e:
     echo -e "${GRAY}Logging to: $TRAIN_LOG${NC}"
     
     # Ensure we're in the virtual environment for training
-    source "$ENV/bin/activate"
-    python3 train.py | tee "$TRAIN_LOG"
+    "$ENV/bin/python" train.py | tee "$TRAIN_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log_success "Training completed successfully!"
@@ -435,8 +434,7 @@ except Exception as e:
     echo -e "${GRAY}Logging to: $ANALYSIS_LOG${NC}"
     
     # Ensure we're in the virtual environment for analysis
-    source "$ENV/bin/activate"
-    python3 analyze.py | tee "$ANALYSIS_LOG"
+    "$ENV/bin/python" analyze.py | tee "$ANALYSIS_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log_success "Analysis completed successfully!"
