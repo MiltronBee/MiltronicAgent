@@ -62,7 +62,7 @@ print_header() {
     ██║╚██╔╝██║██║██║     ██║   ██╔══██╗██║   ██║██║╚██╗██║██║██║     
     ██║ ╚═╝ ██║██║███████╗██║   ██║  ██║╚██████╔╝██║ ╚████║██║╚██████╗
     ╚═╝     ╚═╝╚═╝╚══════╝╚═╝   ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝ ╚═════╝
-                     Meta-Adaptive Gating Training Pipeline                    
+                     k'-Prime Entropy Control System                    
 EOF
     echo -e "${NC}"
 }
@@ -175,7 +175,7 @@ except Exception as e:
 
     # STEP 6: WandB config
     log_step "Configuring Weights & Biases..."
-    export WANDB_PROJECT="miltronic-pacman-v1-final"
+    export WANDB_PROJECT="miltronic-k-prime-release"
     export WANDB_MODE="online"
     export WANDB_API_KEY="8a00b1cbdd3ad81aa24736b9e741380001d9de3b"
     log_success "W&B configured: ${CYAN}$WANDB_PROJECT${NC}"
@@ -190,7 +190,7 @@ except Exception as e:
     echo -e "${YELLOW}║                    TRAINING PHASE                        ║${NC}"
     echo -e "${YELLOW}╚══════════════════════════════════════════════════════════╝${NC}"
     
-    log_step "Starting comparative training (MAG + Baseline)..."
+    log_step "Starting comparative training (k'-Prime + Baseline)..."
     log_info "This will run two 5M timestep training sessions"
     log_info "Expected duration: ${YELLOW}~8-12 hours${NC}"
     
