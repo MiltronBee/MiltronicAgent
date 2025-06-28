@@ -415,7 +415,8 @@ except Exception as e:
     echo -e "${GRAY}Logging to: $TRAIN_LOG${NC}"
     
     # Ensure we're in the virtual environment for training
-    "$ENV/bin/python" train.py | tee "$TRAIN_LOG"
+    source "$ENV/bin/activate"
+    python3 train.py | tee "$TRAIN_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log_success "Training completed successfully!"
@@ -434,7 +435,8 @@ except Exception as e:
     echo -e "${GRAY}Logging to: $ANALYSIS_LOG${NC}"
     
     # Ensure we're in the virtual environment for analysis
-    "$ENV/bin/python" analyze.py | tee "$ANALYSIS_LOG"
+    source "$ENV/bin/activate"
+    python3 analyze.py | tee "$ANALYSIS_LOG"
     
     if [ ${PIPESTATUS[0]} -eq 0 ]; then
         log_success "Analysis completed successfully!"

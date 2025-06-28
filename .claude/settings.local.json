@@ -18,7 +18,9 @@
       "Bash(python:*)",
       "Bash(./test.sh)",
       "Bash(grep:*)",
-      "Bash(chmod:*)"
+      "Bash(chmod:*)",
+      "Bash(ls:*)",
+      "Bash(git checkout:*)"
     ],
     "deny": []
   }
