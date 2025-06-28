@@ -17,7 +17,8 @@
       "Bash(git remote:*)",
       "Bash(python:*)",
       "Bash(./test.sh)",
-      "Bash(grep:*)"
+      "Bash(grep:*)",
+      "Bash(chmod:*)"
     ],
     "deny": []
   }

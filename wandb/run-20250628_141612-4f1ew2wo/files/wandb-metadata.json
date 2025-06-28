@@ -1,0 +1,31 @@
+{
+  "os": "Linux-5.4.0-215-generic-x86_64-with-glibc2.29",
+  "python": "CPython 3.8.10",
+  "startedAt": "2025-06-28T14:16:12.606673Z",
+  "program": "train.py",
+  "codePath": "train.py",
+  "git": {
+    "remote": "https://github.com/MiltronBee/MiltronicAgent",
+    "commit": "1ed13a33377b690f409992b1e82ed8d5f9492be9"
+  },
+  "email": "dosdepastor69@gmail.com",
+  "root": "/root/MiltronicAgent",
+  "host": "Motherload",
+  "executable": "/root/MiltronicAgent/miltronic_env/bin/python3",
+  "codePathLocal": "train.py",
+  "cpu_count": 2,
+  "cpu_count_logical": 2,
+  "disk": {
+    "/": {
+      "total": "83053432832",
+      "used": "24692736000"
+    }
+  },
+  "memory": {
+    "total": "4110286848"
+  },
+  "cpu": {
+    "count": 2,
+    "countLogical": 2
+  }
+}
