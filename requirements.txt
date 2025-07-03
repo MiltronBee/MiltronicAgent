@@ -1,0 +1,5 @@
+stable-baselines3[extra]
+wandb
+ale-py
+gymnasium[atari]
+torch
